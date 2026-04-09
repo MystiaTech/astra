@@ -1,4 +1,5 @@
 """Entry point for Astra bot."""
+
 import asyncio
 import logging
 import os
@@ -7,6 +8,7 @@ import sys
 # Try to load dotenv, but don't fail if not installed
 try:
     from dotenv import load_dotenv
+
     load_dotenv()
 except ImportError:
     pass
@@ -17,9 +19,7 @@ from .bot import AstraBot
 logging.basicConfig(
     level=getattr(logging, os.getenv("LOG_LEVEL", "INFO")),
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[
-        logging.StreamHandler(sys.stdout)
-    ]
+    handlers=[logging.StreamHandler(sys.stdout)],
 )
 logger = logging.getLogger(__name__)
 

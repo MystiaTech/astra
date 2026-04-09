@@ -1,0 +1,15 @@
+{
+  "name": "Classic Rider-Waite",
+  "description": "Authentic Pamela Colman Smith illustrations (1909)",
+  "author": "Pamela Colman Smith",
+  "version": "1.0.0",
+  "card_format": "{suit}_{number}_{name}.png",
+  "supports_reversed": false,
+  "is_default": false,
+  "preview_image": "preview.png",
+  "extra": {
+    "year": "1909",
+    "artist": "Pamela Colman Smith",
+    "publisher": "Rider & Son"
+  }
+}

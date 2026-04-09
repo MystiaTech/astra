@@ -7,7 +7,7 @@ __version__ = "1.0.0"
 __author__ = "Team Astra"
 
 from .bot import AstraBot
-from .data import TAROT_DECK, SPREADS, Card, Spread
+from .data import SPREADS, TAROT_DECK, Card, Spread
 from .reading import Reading, ReadingResult, ReadingSession
 
 __all__ = [

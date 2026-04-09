@@ -10,25 +10,24 @@ Uses discord.py with slash commands.
 import asyncio
 import logging
 import random
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Optional
 
 import discord
 from discord import app_commands
 from discord.ext import commands
 
-from .data import TAROT_DECK, SPREADS, Card, Spread
-from .reading import Reading, ReadingSession, ReadingResult
+from .data import SPREADS, TAROT_DECK
 from .embeds import (
-    create_reading_embed,
-    create_reading_embed_with_images,
-    create_spread_info_embed,
     create_help_embed,
-    create_save_confirmation_embed
+    create_reading_embed_with_images,
+    create_save_confirmation_embed,
+    create_spread_info_embed,
 )
-from .themes import get_theme_manager
-from .theme_commands import ThemeCommands, prompt_theme_selection
 from .journal_commands import JournalCommands, save_reading_to_journal
+from .reading import Reading, ReadingResult, ReadingSession
+from .theme_commands import ThemeCommands
+from .themes import get_theme_manager
 
 logger = logging.getLogger(__name__)
 
@@ -36,80 +35,77 @@ logger = logging.getLogger(__name__)
 class AstraBot(commands.Bot):
     """
     Astra Tarot Reading Bot
-    
+
     Features:
     - Slash commands for all interactions
     - Single-session reading management (one user at a time)
     - Multiple spread types
     - Rich embeds for card displays
     """
-    
+
     def __init__(self):
         intents = discord.Intents.default()
         # Note: message_content intent not needed for slash commands only
         # Keeping it disabled avoids privileged intent requirements
-        
+
         super().__init__(
             command_prefix="!",  # Fallback only, we use slash commands
             intents=intents,
             activity=discord.Activity(
-                type=discord.ActivityType.watching,
-                name="the stars align 🔮"
+                type=discord.ActivityType.watching, name="the stars align 🔮"
             ),
             status=discord.Status.online,
         )
-        
+
         # Session management - only one active reading at a time
         self.active_session: Optional[ReadingSession] = None
         self.session_timeout: int = 300  # 5 minutes
         self.session_lock = asyncio.Lock()
-        
+
         # Statistics
         self.readings_completed = 0
         self.start_time = datetime.now()
-    
+
     async def setup_hook(self):
         """Set up the bot and sync commands."""
         logger.info("Setting up Astra bot...")
-        
+
         # Initialize theme manager
         self.theme_manager = get_theme_manager(self)
         await self.theme_manager.scan_themes()
         self.theme_manager.start_watching()
-        
+
         # Add command cogs
         await self.add_cog(TarotCommands(self))
         await self.add_cog(ThemeCommands(self))
         await self.add_cog(JournalCommands(self))
-        
+
         # Sync slash commands
         try:
             synced = await self.tree.sync()
             logger.info(f"Synced {len(synced)} slash commands")
         except Exception as e:
             logger.error(f"Failed to sync commands: {e}")
-    
+
     async def on_ready(self):
         """Called when bot is ready."""
         # Main log message
         logger.info(f"Astra is online! Logged in as {self.user} (ID: {self.user.id})")
         logger.info(f"Bot is in {len(self.guilds)} guilds")
-        
+
         # Print a clear message for Pterodactyl startup detection
         print("✅ Astra is ready and listening for commands", flush=True)
-    
+
     async def on_error(self, event_method: str, *args, **kwargs):
         """Handle errors."""
         logger.exception(f"Error in {event_method}")
-    
+
     async def acquire_reading_session(
-        self, 
-        user: discord.User,
-        spread_type: str
+        self, user: discord.User, spread_type: str
     ) -> Optional[ReadingSession]:
         """
         Attempt to acquire a reading session for a user.
-        
+
         Returns None if another reading is in progress.
         """
         async with self.session_lock:
@@ -122,7 +118,7 @@ class AstraBot(commands.Bot):
                 else:
                     # Session is active and valid
                     return None
-            
+
             # Create new session
             session = ReadingSession(
                 user_id=user.id,
@@ -133,11 +129,11 @@ class AstraBot(commands.Bot):
             self.active_session = session
             logger.info(f"New session acquired by {user.name} for {spread_type}")
             return session
-    
+
     async def release_reading_session(self, user_id: int) -> bool:
         """
         Release a reading session.
-        
+
         Returns True if session was released, False if user didn't own it.
         """
         async with self.session_lock:
@@ -147,22 +143,22 @@ class AstraBot(commands.Bot):
                 logger.info(f"Session released by user {user_id}")
                 return True
             return False
-    
+
     def get_session_status(self) -> dict:
         """Get current session status for status display."""
         if self.active_session is None:
             return {"active": False, "user": None, "spread": None}
-        
+
         return {
             "active": True,
             "user": self.active_session.username,
             "spread": self.active_session.spread_type,
             "elapsed": self.active_session.elapsed_seconds(),
         }
-    
+
     async def close(self):
         """Clean up on shutdown."""
-        if hasattr(self, 'theme_manager'):
+        if hasattr(self, "theme_manager"):
             self.theme_manager.stop_watching()
         await super().close()
 
@@ -170,114 +166,114 @@ class AstraBot(commands.Bot):
 class TarotCommands(commands.Cog):
     """
     Tarot reading slash commands for Astra.
-    
+
     IMPLEMENTED BY: Emma (Backend Lead)
     """
-    
+
     def __init__(self, bot: AstraBot):
         self.bot = bot
-    
+
     # ========================================================================
     # SLASH COMMAND: /tarot single
     # ========================================================================
     @app_commands.command(name="tarot-single", description="Draw a single card for quick guidance")
     @app_commands.describe(
         question="Optional: What would you like guidance on?",
-        reversed_cards="Allow reversed cards in the reading?"
+        reversed_cards="Allow reversed cards in the reading?",
     )
     async def tarot_single(
         self,
         interaction: discord.Interaction,
         question: Optional[str] = None,
-        reversed_cards: bool = True
+        reversed_cards: bool = True,
     ):
         """Single card reading command."""
         await self._perform_reading(
             interaction=interaction,
             spread_type="single",
             question=question,
-            allow_reversed=reversed_cards
+            allow_reversed=reversed_cards,
         )
-    
+
     # ========================================================================
     # SLASH COMMAND: /tarot three
     # ========================================================================
     @app_commands.command(name="tarot-three", description="Past, Present, Future three-card spread")
     @app_commands.describe(
         question="Optional: What would you like guidance on?",
-        reversed_cards="Allow reversed cards in the reading?"
+        reversed_cards="Allow reversed cards in the reading?",
     )
     async def tarot_three(
         self,
         interaction: discord.Interaction,
         question: Optional[str] = None,
-        reversed_cards: bool = True
+        reversed_cards: bool = True,
     ):
         """Three-card spread command."""
         await self._perform_reading(
             interaction=interaction,
             spread_type="three",
             question=question,
-            allow_reversed=reversed_cards
+            allow_reversed=reversed_cards,
         )
-    
+
     # ========================================================================
     # SLASH COMMAND: /tarot mind-body-spirit
     # ========================================================================
-    @app_commands.command(name="tarot-mind-body-spirit", description="Holistic self-examination spread")
+    @app_commands.command(
+        name="tarot-mind-body-spirit",
+        description="Holistic self-examination spread",
+    )
     @app_commands.describe(
         question="Optional: Focus area for the reading",
-        reversed_cards="Allow reversed cards in the reading?"
+        reversed_cards="Allow reversed cards in the reading?",
     )
     async def tarot_mind_body_spirit(
         self,
         interaction: discord.Interaction,
         question: Optional[str] = None,
-        reversed_cards: bool = True
+        reversed_cards: bool = True,
     ):
         """Mind-Body-Spirit spread command."""
         await self._perform_reading(
             interaction=interaction,
             spread_type="mind_body_spirit",
             question=question,
-            allow_reversed=reversed_cards
+            allow_reversed=reversed_cards,
         )
-    
+
     # ========================================================================
     # SLASH COMMAND: /tarot situation-action
     # ========================================================================
     @app_commands.command(name="tarot-situation-action", description="Problem-solving spread")
     @app_commands.describe(
         question="What situation would you like guidance on?",
-        reversed_cards="Allow reversed cards in the reading?"
+        reversed_cards="Allow reversed cards in the reading?",
     )
     async def tarot_situation_action(
-        self,
-        interaction: discord.Interaction,
-        question: str,
-        reversed_cards: bool = True
+        self, interaction: discord.Interaction, question: str, reversed_cards: bool = True
     ):
         """Situation-Action-Outcome spread command."""
         await self._perform_reading(
             interaction=interaction,
             spread_type="situation_action",
             question=question,
-            allow_reversed=reversed_cards
+            allow_reversed=reversed_cards,
         )
-    
+
     # ========================================================================
     # SLASH COMMAND: /tarot relationship
     # ========================================================================
     @app_commands.command(name="tarot-relationship", description="Seven-card relationship spread")
     @app_commands.describe(
         person="Name or description of the other person (optional)",
-        reversed_cards="Allow reversed cards in the reading?"
+        reversed_cards="Allow reversed cards in the reading?",
     )
     async def tarot_relationship(
         self,
         interaction: discord.Interaction,
         person: Optional[str] = None,
-        reversed_cards: bool = True
+        reversed_cards: bool = True,
     ):
         """Relationship spread command."""
         question = f"Relationship with {person}" if person else "Relationship dynamics"
@@ -285,22 +281,22 @@ class TarotCommands(commands.Cog):
             interaction=interaction,
             spread_type="relationship",
             question=question,
-            allow_reversed=reversed_cards
+            allow_reversed=reversed_cards,
         )
-    
+
     # ========================================================================
     # SLASH COMMAND: /tarot career
     # ========================================================================
     @app_commands.command(name="tarot-career", description="Five-card career guidance spread")
     @app_commands.describe(
         focus="Career focus area (e.g., 'promotion', 'new job', 'skills')",
-        reversed_cards="Allow reversed cards in the reading?"
+        reversed_cards="Allow reversed cards in the reading?",
     )
     async def tarot_career(
         self,
         interaction: discord.Interaction,
         focus: Optional[str] = None,
-        reversed_cards: bool = True
+        reversed_cards: bool = True,
     ):
         """Career path spread command."""
         question = f"Career focus: {focus}" if focus else "Career guidance"
@@ -308,31 +304,31 @@ class TarotCommands(commands.Cog):
             interaction=interaction,
             spread_type="career",
             question=question,
-            allow_reversed=reversed_cards
+            allow_reversed=reversed_cards,
         )
-    
+
     # ========================================================================
     # SLASH COMMAND: /tarot celtic
     # ========================================================================
-    @app_commands.command(name="tarot-celtic", description="Full Celtic Cross (10 cards) - Advanced spread")
+    @app_commands.command(
+        name="tarot-celtic",
+        description="Full Celtic Cross (10 cards) - Advanced spread",
+    )
     @app_commands.describe(
         question="The situation or question for deep exploration",
-        reversed_cards="Allow reversed cards in the reading?"
+        reversed_cards="Allow reversed cards in the reading?",
     )
     async def tarot_celtic(
-        self,
-        interaction: discord.Interaction,
-        question: str,
-        reversed_cards: bool = True
+        self, interaction: discord.Interaction, question: str, reversed_cards: bool = True
     ):
         """Celtic Cross spread command."""
         await self._perform_reading(
             interaction=interaction,
             spread_type="celtic",
             question=question,
-            allow_reversed=reversed_cards
+            allow_reversed=reversed_cards,
         )
-    
+
     # ========================================================================
     # SLASH COMMAND: /tarot spreads
     # ========================================================================
@@ -341,7 +337,7 @@ class TarotCommands(commands.Cog):
         """Show information about all available spreads."""
         embed = create_spread_info_embed()
         await interaction.response.send_message(embed=embed)
-    
+
     # ========================================================================
     # SLASH COMMAND: /tarot help
     # ========================================================================
@@ -350,7 +346,7 @@ class TarotCommands(commands.Cog):
         """Show help information."""
         embed = create_help_embed()
         await interaction.response.send_message(embed=embed, ephemeral=True)
-    
+
     # ========================================================================
     # SLASH COMMAND: /tarot cancel
     # ========================================================================
@@ -358,38 +354,38 @@ class TarotCommands(commands.Cog):
     async def tarot_cancel(self, interaction: discord.Interaction):
         """Cancel the user's current reading session."""
         released = await self.bot.release_reading_session(interaction.user.id)
-        
+
         if released:
             await interaction.response.send_message(
                 "🔮 Your reading session has been cancelled. The stars thank you for your visit.",
-                ephemeral=True
+                ephemeral=True,
             )
         else:
             await interaction.response.send_message(
-                "You don't have an active reading session to cancel.",
-                ephemeral=True
+                "You don't have an active reading session to cancel.", ephemeral=True
             )
-    
+
     # ========================================================================
     # CORE READING LOGIC
     # ========================================================================
-    
+
     async def _perform_reading(
         self,
         interaction: discord.Interaction,
         spread_type: str,
         question: Optional[str],
-        allow_reversed: bool
+        allow_reversed: bool,
     ):
         """
         Core reading logic - handles session management and card drawing.
-        
+
         This ensures only one user has an active reading at a time.
         """
         # Check if user has selected a theme (first time only)
         if not self.bot.theme_manager.has_selected_theme(interaction.user.id):
             # Show theme selection first
             from .theme_commands import prompt_theme_selection
+
             theme_selected = await prompt_theme_selection(self.bot, interaction)
             if not theme_selected:
                 return
@@ -398,13 +394,12 @@ class TarotCommands(commands.Cog):
         else:
             # Defer response since reading might take a moment
             await interaction.response.defer(thinking=True)
-        
+
         # Try to acquire session
         session = await self.bot.acquire_reading_session(
-            user=interaction.user,
-            spread_type=spread_type
+            user=interaction.user, spread_type=spread_type
         )
-        
+
         if session is None:
             # Someone else is reading
             status = self.bot.get_session_status()
@@ -417,35 +412,39 @@ class TarotCommands(commands.Cog):
                         f"receives her full attention and energy.\n\n"
                         f"Please try again in a few moments when the current reading completes."
                     ),
-                    color=0x9B59B6
+                    color=0x9B59B6,
                 ).set_footer(text="The stars teach patience 🌙")
             )
             return
-        
+
         try:
             # Perform the reading
             reading = self._draw_cards(
-                spread_type=spread_type,
-                question=question,
-                allow_reversed=allow_reversed
+                spread_type=spread_type, question=question, allow_reversed=allow_reversed
             )
-            
+
+            # Get user's theme for attribution
+            theme_manager = get_theme_manager()
+            user_theme = theme_manager.get_user_theme(str(interaction.user.id))
+            theme_id = user_theme.id if user_theme else "default"
+
             # Create reading embed with card images
             embed, files = create_reading_embed_with_images(
                 reading=reading,
                 user=interaction.user,
                 spread=SPREADS[spread_type],
-                user_id=str(interaction.user.id)
+                user_id=str(interaction.user.id),
+                theme_id=theme_id,
             )
-            
+
             # Create save button
             view = discord.ui.View(timeout=300)  # 5 minute timeout
             save_btn = discord.ui.Button(
                 label="📔 Save to Journal",
                 style=discord.ButtonStyle.success,
-                custom_id="save_reading"
+                custom_id="save_reading",
             )
-            
+
             async def save_callback(btn_interaction: discord.Interaction):
                 """Handle save button click."""
                 if btn_interaction.user.id != interaction.user.id:
@@ -453,78 +452,62 @@ class TarotCommands(commands.Cog):
                         "This isn't your reading!", ephemeral=True
                     )
                     return
-                
+
                 success = await save_reading_to_journal(
-                    str(interaction.user.id),
-                    reading,
-                    btn_interaction
+                    str(interaction.user.id), reading, btn_interaction
                 )
-                
+
                 if success:
                     confirm_embed = create_save_confirmation_embed(reading)
-                    await btn_interaction.response.send_message(
-                        embed=confirm_embed,
-                        ephemeral=True
-                    )
+                    await btn_interaction.response.send_message(embed=confirm_embed, ephemeral=True)
                 else:
                     await btn_interaction.response.send_message(
                         "❌ Could not save. Your journal may be full (max 100 entries).",
-                        ephemeral=True
+                        ephemeral=True,
                     )
-            
+
             save_btn.callback = save_callback
             view.add_item(save_btn)
-            
+
             # Send embed with images
             if files:
                 await interaction.followup.send(embed=embed, files=files, view=view)
             else:
                 await interaction.followup.send(embed=embed, view=view)
-            
+
             # Release session after a short delay to allow reading
             await asyncio.sleep(2)
             await self.bot.release_reading_session(interaction.user.id)
-            
-        except Exception as e:
+
+        except Exception:
             logger.exception("Error performing reading")
             await self.bot.release_reading_session(interaction.user.id)
             await interaction.followup.send(
-                "🔮 The mists cloud my vision. Please try again in a moment.",
-                ephemeral=True
+                "🔮 The mists cloud my vision. Please try again in a moment.", ephemeral=True
             )
-    
+
     def _draw_cards(
-        self,
-        spread_type: str,
-        question: Optional[str],
-        allow_reversed: bool
+        self, spread_type: str, question: Optional[str], allow_reversed: bool
     ) -> Reading:
         """
         Draw cards for a reading.
-        
+
         Uses proper shuffling and randomization.
         """
         spread = SPREADS[spread_type]
-        
+
         # Shuffle deck
         shuffled = random.sample(TAROT_DECK, len(TAROT_DECK))
-        
+
         # Draw required number of cards
-        drawn_cards = shuffled[:spread.num_cards]
-        
+        drawn_cards = shuffled[: spread.num_cards]
+
         # Determine orientation for each card
         results = []
         for i, card in enumerate(drawn_cards):
             is_reversed = allow_reversed and random.choice([True, False])
-            results.append(ReadingResult(
-                card=card,
-                position=i + 1,
-                reversed=is_reversed
-            ))
-        
+            results.append(ReadingResult(card=card, position=i + 1, reversed=is_reversed))
+
         return Reading(
-            spread_type=spread_type,
-            question=question,
-            results=results,
-            timestamp=datetime.now()
+            spread_type=spread_type, question=question, results=results, timestamp=datetime.now()
         )

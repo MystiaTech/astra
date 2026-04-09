@@ -29,14 +29,20 @@ dev = [
 
 [tool.black]
 line-length = 100
+target-version = ["py310"]
 
 [tool.ruff]
 line-length = 100
+
+[tool.ruff.lint]
 select = ["E", "F", "W", "I", "N"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+markers = [
+    "integration: integration-level tests (may require extra assets/config)",
+]
 
 [tool.setuptools]
 package-dir = {"" = "src"}

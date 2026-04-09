@@ -8,20 +8,20 @@ Each spread defines card positions and their interpretations.
 """
 
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass(frozen=True)
 class SpreadPosition:
     """
     Represents a single position in a tarot spread.
-    
+
     Attributes:
         position: Position number (1-indexed)
         name: Position name
         meaning: What this position represents
         description: Detailed explanation
     """
+
     position: int
     name: str
     meaning: str
@@ -32,7 +32,7 @@ class SpreadPosition:
 class Spread:
     """
     Represents a complete tarot spread layout.
-    
+
     Attributes:
         name: Spread name
         description: Brief description
@@ -41,6 +41,7 @@ class Spread:
         best_for: Types of questions this spread answers
         difficulty: Beginner/Intermediate/Advanced
     """
+
     name: str
     description: str
     num_cards: int
@@ -88,7 +89,7 @@ THREE_CARD_SPREAD = Spread(
     positions=[
         SpreadPosition(
             position=1,
-            name="The Past",
+            name="Past",
             meaning="Foundation and influences",
             description=(
                 "This card represents the past events, experiences, or energies that "
@@ -98,7 +99,7 @@ THREE_CARD_SPREAD = Spread(
         ),
         SpreadPosition(
             position=2,
-            name="The Present",
+            name="Present",
             meaning="Current situation and energies",
             description=(
                 "This card reflects your current state, the energies surrounding you now, "
@@ -107,7 +108,7 @@ THREE_CARD_SPREAD = Spread(
         ),
         SpreadPosition(
             position=3,
-            name="The Future",
+            name="Future",
             meaning="Potential outcome or direction",
             description=(
                 "This card indicates the likely outcome if current energies continue. "
