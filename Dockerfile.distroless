@@ -1,0 +1,47 @@
+# Astra Tarot Bot - Distroless Image (Minimal CVEs)
+# ==================================================
+# Multi-stage build for smallest, most secure image
+
+# Stage 1: Build
+FROM python:3.10-slim as builder
+
+WORKDIR /build
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python packages
+COPY pyproject.toml ./
+RUN pip install --user --no-cache-dir \
+    discord-py>=2.3.0 \
+    python-dotenv>=1.0.0 \
+    aiohttp>=3.9.0 \
+    pydantic>=2.5.0 \
+    watchdog>=3.0.0 \
+    Pillow>=10.0.0
+
+# Stage 2: Runtime (distroless)
+FROM gcr.io/distroless/python3-debian12
+
+# Copy Python packages from builder
+COPY --from=builder /root/.local /home/nonroot/.local
+COPY --from=builder /usr/local/lib/python3.10 /usr/local/lib/python3.10
+
+# Copy application
+WORKDIR /home/container
+COPY src/ ./src/
+COPY themes/ ./themes/
+COPY assets/ ./assets/
+
+# Set environment
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PATH="/home/nonroot/.local/bin:/usr/local/bin:${PATH}"
+ENV PYTHONPATH="/home/nonroot/.local/lib/python3.10/site-packages"
+
+# Non-root user (distroless default)
+USER nonroot:nonroot
+
+ENTRYPOINT ["python3", "-m", "astra"]

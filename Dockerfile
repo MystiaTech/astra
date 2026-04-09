@@ -1,24 +1,31 @@
-# Astra Tarot Bot - Pterodactyl Docker Image
-# ==========================================
+# Astra Tarot Bot - Secure Docker Image
+# =====================================
+# Uses python:3.10-alpine for minimal CVE surface
 
-FROM python:3.10-slim
+FROM python:3.10-alpine
 
 LABEL maintainer="Astra Team"
-LABEL description="Astra Tarot Discord Bot for Pterodactyl"
+LABEL description="Astra Tarot Discord Bot"
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    git \
-    && rm -rf /var/lib/apt/lists/*
+# Install security updates and required packages
+RUN apk update && \
+    apk upgrade && \
+    apk add --no-cache \
+        git \
+        gcc \
+        musl-dev \
+        libffi-dev \
+    && rm -rf /var/cache/apk/*
+
+# Create non-root user for security
+RUN adduser -D -h /home/container container
 
 # Set working directory
 WORKDIR /home/container
 
-# Copy requirements first for better caching
+# Copy and install dependencies first (better caching)
 COPY pyproject.toml ./
-
-# Install Python dependencies
-RUN pip install --no-cache-dir \
+RUN pip install --no-cache-dir --user \
     discord-py>=2.3.0 \
     python-dotenv>=1.0.0 \
     aiohttp>=3.9.0 \
@@ -30,18 +37,22 @@ RUN pip install --no-cache-dir \
 COPY src/ ./src/
 COPY themes/ ./themes/
 COPY assets/ ./assets/
-COPY data/ ./data/
 
-# Create necessary directories
-RUN mkdir -p /home/container/data /home/container/logs
+# Create data directory and set permissions
+RUN mkdir -p /home/container/data && \
+    chown -R container:container /home/container
 
-# Set environment variables
+# Switch to non-root user
+USER container
+
+# Set environment
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
-ENV LOG_LEVEL=INFO
+ENV PATH="/home/container/.local/bin:${PATH}"
 
-# Pterodactyl uses this user
-USER root
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python -c "import sys; sys.exit(0)" || exit 1
 
-# Entrypoint
+# Run
 ENTRYPOINT ["python", "-m", "astra"]
