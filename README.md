@@ -306,7 +306,9 @@ Maya has designed several cover art themes in `assets/cover_art/`:
 
 ## License
 
-This project is for educational purposes. Tarot card meanings are based on traditional interpretations.
+MIT License - see [LICENSE](LICENSE) file for details.
+
+Tarot card meanings and interpretations are based on traditional Rider-Waite-Smith tradition and are provided for educational and entertainment purposes.
 
 ---
 
