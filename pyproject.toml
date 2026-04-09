@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "astra-tarot-bot"
 version = "1.0.0"
@@ -32,3 +36,7 @@ select = ["E", "F", "W", "I", "N"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+packages = ["astra", "astra.data"]
