@@ -105,21 +105,26 @@ class Theme:
 class ThemeChangeHandler(FileSystemEventHandler):
     """Watchdog handler for theme folder changes."""
     
-    def __init__(self, callback: Callable):
+    def __init__(self, callback: Callable, loop: asyncio.AbstractEventLoop):
         self.callback = callback
-        self._debounce_timer = None
+        self._loop = loop
+        self._scheduled = False
     
     def on_any_event(self, event):
         """Handle any filesystem event."""
         if event.is_directory:
             return
         
-        # Debounce rapid changes
-        if self._debounce_timer:
-            self._debounce_timer.cancel()
-        
-        loop = asyncio.get_event_loop()
-        self._debounce_timer = loop.call_later(1.0, lambda: asyncio.create_task(self.callback()))
+        # Only schedule one scan at a time (simple debounce)
+        if not self._scheduled:
+            self._scheduled = True
+            # Schedule callback in the main event loop (thread-safe)
+            self._loop.call_soon_threadsafe(self._trigger_scan)
+    
+    def _trigger_scan(self):
+        """Reset flag and trigger scan."""
+        self._scheduled = False
+        asyncio.create_task(self.callback())
 
 
 class ThemeManager:
@@ -160,7 +165,14 @@ class ThemeManager:
         if self._observer:
             return
         
-        handler = ThemeChangeHandler(self.scan_themes)
+        # Get the current event loop (must be called from async context)
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            logger.warning("No running event loop, theme watching disabled")
+            return
+        
+        handler = ThemeChangeHandler(self.scan_themes, loop)
         self._observer = Observer()
         self._observer.schedule(handler, self.THEMES_DIR, recursive=True)
         self._observer.start()
