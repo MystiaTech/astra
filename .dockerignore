@@ -12,6 +12,7 @@ __pycache__/
 .eggs/
 dist/
 build/
+wheels/
 
 # Virtual environments
 venv/
@@ -24,23 +25,39 @@ env/
 .idea/
 *.swp
 *.swo
+*~
 
-# Environment (don't copy .env)
+# Environment
 .env
 .env.local
+.env.*
 
 # Tests
-tests/__pycache__/
+tests/
 .pytest_cache/
 .coverage
+htmlcov/
 
-# Documentation (keep for reference)
-# README.md
+# Documentation
+*.md
+!README.md
+
+# CI/CD
+.github/
+.gitea/
+
+# Docker
+Dockerfile*
+docker-compose*
+.docker/
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Keep these for Pterodactyl
-# data/
-# themes/
+# Keep these
+!themes/
+!assets/
+!src/
+!pyproject.toml
+!LICENSE

@@ -1,0 +1,57 @@
+# Astra Tarot Bot - Alpine Linux (Minimal CVEs)
+# =============================================
+
+FROM python:3.10-alpine
+
+LABEL maintainer="MystiaTech"
+LABEL description="Astra Tarot Discord Bot - Alpine Edition"
+
+# Install only required packages
+RUN apk update && \
+    apk upgrade && \
+    apk add --no-cache \
+        git \
+        gcc \
+        musl-dev \
+        libffi-dev \
+    && rm -rf /var/cache/apk/*
+
+# Create non-root user
+RUN adduser -D -h /home/container container
+
+WORKDIR /home/container
+
+# Copy and install as root
+COPY . /opt/astra/
+RUN cd /opt/astra && \
+    pip install --no-cache-dir . && \
+    pip install --no-cache-dir \
+        discord-py>=2.3.0 \
+        python-dotenv>=1.0.0 \
+        aiohttp>=3.9.0 \
+        pydantic>=2.5.0 \
+        watchdog>=3.0.0 \
+        Pillow>=10.0.0 && \
+    rm -rf /root/.cache
+
+# Verify
+RUN python -c "import astra; print('Astra installed:', astra.__version__)"
+
+# Cleanup build dependencies
+RUN apk del gcc musl-dev libffi-dev
+
+# Copy static assets
+RUN cp -r /opt/astra/themes /opt/astra-assets/ && \
+    cp -r /opt/astra/assets /opt/astra-assets/
+
+# Create data dir
+RUN mkdir -p /home/container/data && chown -R container:container /home/container
+
+USER container
+
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV USER=container
+ENV HOME=/home/container
+
+CMD ["python", "-m", "astra"]

@@ -1,46 +1,72 @@
-# Astra Tarot Bot - Pterodactyl Compatible Image
-# ==============================================
+# Astra Tarot Bot - Production Image
+# ==================================
+# Based on python:3.10-slim with security hardening
 
-FROM python:3.10-slim
+FROM python:3.10-slim AS builder
 
-LABEL maintainer="Astra Team"
-LABEL description="Astra Tarot Discord Bot for Pterodactyl"
-
-# Install git and build dependencies
+# Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    git \
     gcc \
     && rm -rf /var/lib/apt/lists/*
 
-# Create container user
-RUN useradd -m -d /home/container -s /bin/bash container
+# Install Python packages
+WORKDIR /install
+COPY pyproject.toml ./
+COPY src/ ./src/
+RUN pip install --user --no-cache-dir .
 
-# Set working directory
+# Production stage
+FROM python:3.10-slim
+
+LABEL maintainer="MystiaTech"
+LABEL description="Astra Tarot Discord Bot"
+
+# Security: Create non-root user
+RUN groupadd -r container && useradd -r -g container -d /home/container container
+
+# Install runtime dependency (git for Pterodactyl)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends git && \
+    rm -rf /var/lib/apt/lists/* && \
+    apt-get clean
+
 WORKDIR /home/container
 
-# Copy and install to system Python (as root)
-COPY . /opt/astra/
-RUN cd /opt/astra && pip install --no-cache-dir . && \
-    pip install --no-cache-dir discord-py python-dotenv aiohttp pydantic watchdog Pillow
+# Copy installed packages from builder
+COPY --from=builder /root/.local /home/container/.local
 
-# Copy static assets to system location
-RUN cp -r /opt/astra/themes /opt/astra-assets/ && \
-    cp -r /opt/astra/assets /opt/astra-assets/
+# Copy application
+COPY --chown=container:container src/ ./src/
+COPY --chown=container:container themes/ ./themes/
+COPY --chown=container:container assets/ ./assets/
+COPY --chown=container:container pyproject.toml ./
 
-# Verify installation
-RUN python -c "import astra; print('Astra installed:', astra.__file__)"
+# Install runtime dependencies
+RUN pip install --user --no-cache-dir \
+    discord-py>=2.3.0 \
+    python-dotenv>=1.0.0 \
+    aiohttp>=3.9.0 \
+    pydantic>=2.5.0 \
+    watchdog>=3.0.0 \
+    Pillow>=10.0.0 && \
+    rm -rf /home/container/.cache
 
-# Fix permissions
-RUN chmod -R 755 /usr/local/lib/python3.10/site-packages/astra*
+# Create data directory
+RUN mkdir -p /home/container/data && \
+    chown -R container:container /home/container
 
-# Switch to container user
+# Switch to non-root user
 USER container
 
 # Environment
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
+ENV PATH="/home/container/.local/bin:$PATH"
 ENV USER=container
 ENV HOME=/home/container
 
-# Default command
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python -c "import astra" || exit 1
+
 CMD ["python", "-m", "astra"]
