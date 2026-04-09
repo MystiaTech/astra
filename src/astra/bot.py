@@ -39,7 +39,8 @@ class AstraBot(commands.Bot):
     
     def __init__(self):
         intents = discord.Intents.default()
-        intents.message_content = True
+        # Note: message_content intent not needed for slash commands only
+        # Keeping it disabled avoids privileged intent requirements
         
         super().__init__(
             command_prefix="!",  # Fallback only, we use slash commands
@@ -66,6 +67,7 @@ class AstraBot(commands.Bot):
         
         # Initialize theme manager
         self.theme_manager = get_theme_manager(self)
+        await self.theme_manager.scan_themes()
         self.theme_manager.start_watching()
         
         # Add command cogs

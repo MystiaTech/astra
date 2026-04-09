@@ -152,8 +152,8 @@ class ThemeManager:
         # Load saved preferences
         self._load_preferences()
         
-        # Initial scan
-        self.scan_themes()
+        # Initial scan (will be run async when needed)
+        # scan_themes() is called explicitly after async loop is ready
     
     def start_watching(self):
         """Start watching for theme changes."""
