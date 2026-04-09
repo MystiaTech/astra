@@ -21,6 +21,7 @@ from .data import TAROT_DECK, SPREADS, Card, Spread
 from .reading import Reading, ReadingSession, ReadingResult
 from .embeds import (
     create_reading_embed,
+    create_reading_embed_with_images,
     create_spread_info_embed,
     create_help_embed,
     create_save_confirmation_embed
@@ -429,11 +430,12 @@ class TarotCommands(commands.Cog):
                 allow_reversed=allow_reversed
             )
             
-            # Create and send the reading embed
-            embed = create_reading_embed(
+            # Create reading embed with card images
+            embed, files = create_reading_embed_with_images(
                 reading=reading,
                 user=interaction.user,
-                spread=SPREADS[spread_type]
+                spread=SPREADS[spread_type],
+                user_id=str(interaction.user.id)
             )
             
             # Create save button
@@ -473,7 +475,11 @@ class TarotCommands(commands.Cog):
             save_btn.callback = save_callback
             view.add_item(save_btn)
             
-            await interaction.followup.send(embed=embed, view=view)
+            # Send embed with images
+            if files:
+                await interaction.followup.send(embed=embed, files=files, view=view)
+            else:
+                await interaction.followup.send(embed=embed, view=view)
             
             # Release session after a short delay to allow reading
             await asyncio.sleep(2)

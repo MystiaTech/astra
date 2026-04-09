@@ -7,10 +7,12 @@ Rich embeds for displaying tarot readings with beautiful formatting.
 """
 
 import discord
-from typing import Optional, List
+import os
+from typing import Optional, List, Tuple, Dict
 
 from .data import Card, Spread, SpreadPosition
 from .reading import Reading, ReadingResult
+from .themes import get_theme_manager
 
 
 # Color palette for embeds
@@ -57,6 +59,133 @@ def get_card_color(card: Card, reversed: bool = False) -> int:
 def get_suit_emoji(card: Card) -> str:
     """Get the emoji for a card's suit."""
     return SUIT_EMOJIS.get(card.suit.name, "🃏")
+
+
+def get_card_image_path(card: Card, reversed: bool = False) -> Optional[str]:
+    """Get the path to a card image."""
+    # Check themes directory for card image
+    suit_lower = card.suit.name.lower()
+    
+    if card.is_major:
+        filename = f"major_{card.number:02d}.png"
+    else:
+        if card.is_court:
+            court_names = {11: "page", 12: "knight", 13: "queen", 14: "king"}
+            filename = f"{suit_lower}_{card.number:02d}_{court_names.get(card.number, card.number)}.png"
+        else:
+            filename = f"{suit_lower}_{card.number:02d}.png"
+    
+    # Check multiple locations
+    possible_paths = [
+        f"themes/default/{filename}",
+        f"themes/classic/{filename}",
+        f"assets/cards/{filename}",
+        f"/opt/astra-assets/themes/{filename}",
+    ]
+    
+    for path in possible_paths:
+        if os.path.exists(path):
+            return path
+    
+    return None
+
+
+def create_reading_embed_with_images(
+    reading: Reading,
+    user: discord.User,
+    spread: Spread,
+    user_id: str
+) -> Tuple[discord.Embed, List[discord.File]]:
+    """
+    Create reading embed with card images.
+    
+    Returns (embed, files) tuple. Files should be sent with the embed.
+    """
+    # Main embed
+    embed = discord.Embed(
+        title=f"🔮 {spread.name}",
+        description=f"*{spread.description}*\n\n✨ {spread.num_cards} cards drawn for you...",
+        color=COLORS["primary"],
+        timestamp=reading.timestamp
+    )
+    
+    # Question if provided
+    if reading.question:
+        embed.add_field(
+            name="🌙 Your Question",
+            value=f"> *{reading.question[:200]}*" + ("..." if len(reading.question) > 200 else ""),
+            inline=False
+        )
+    
+    # Collect image files
+    files = []
+    image_urls = []
+    
+    for i, result in enumerate(reading.results):
+        position = spread.positions[i] if i < len(spread.positions) else None
+        
+        # Get card image
+        image_path = get_card_image_path(result.card, result.reversed)
+        if image_path and os.path.exists(image_path):
+            # Create file attachment
+            filename = f"card_{i+1}.png"
+            files.append(discord.File(image_path, filename=filename))
+            image_urls.append(f"attachment://{filename}")
+        else:
+            image_urls.append(None)
+    
+    # Set main image (first card)
+    if image_urls and image_urls[0]:
+        embed.set_image(url=image_urls[0])
+    
+    # Cards section
+    for i, result in enumerate(reading.results):
+        position = spread.positions[i] if i < len(spread.positions) else None
+        
+        emoji = POSITION_EMOJIS[result.position - 1] if result.position <= len(POSITION_EMOJIS) else "🃏"
+        suit_emoji = get_suit_emoji(result.card)
+        card_name = result.card.get_display_name(reversed=result.reversed)
+        
+        position_title = f"{emoji} **{position.name}**" if position else f"{emoji} Card {result.position}"
+        card_subtitle = f"{suit_emoji} {card_name}"
+        
+        # Add image reference if available
+        if image_urls[i]:
+            card_subtitle += f"\n📎 See image above"
+        
+        value_parts = []
+        if position:
+            value_parts.append(f"*{position.meaning}*")
+        
+        keywords = result.get_keywords()
+        if keywords:
+            keyword_str = " • ".join(f"`{k}`" for k in keywords[:5])
+            value_parts.append(f"\n**Keywords:** {keyword_str}")
+        
+        interpretation = result.get_interpretation()
+        if len(interpretation) > 200:
+            interpretation = interpretation[:197] + "..."
+        value_parts.append(f"\n{interpretation}")
+        
+        embed.add_field(
+            name=f"{position_title}\n{card_subtitle}",
+            value="\n".join(value_parts),
+            inline=False
+        )
+    
+    # Summary
+    summary = _create_reading_summary(reading, spread)
+    if summary:
+        embed.add_field(name="✨ Reading Insights", value=summary, inline=False)
+    
+    # Footer
+    footer_text = f"Reading for {user.display_name} • {spread.num_cards} cards"
+    embed.set_footer(
+        text=footer_text,
+        icon_url=user.display_avatar.url if user.display_avatar else None
+    )
+    
+    return embed, files
 
 
 def create_reading_embed(
