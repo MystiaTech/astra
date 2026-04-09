@@ -13,7 +13,7 @@
         "mystiatech/astra-bot:latest": "mystiatech/astra-bot:latest"
     },
     "file_denylist": "",
-    "startup": "python -m astra",
+    "startup": "python -m astra || (cp -r /opt/astra-assets/themes . 2>/dev/null; cp -r /opt/astra-assets/assets . 2>/dev/null; python -m astra)",
     "config": {
         "files": "{}",
         "startup": "{\n    \"done\": \"Astra is online\"\n}",

@@ -18,26 +18,29 @@ RUN useradd -m -d /home/container -s /bin/bash container
 # Set working directory
 WORKDIR /home/container
 
-# Copy entire project
-COPY --chown=container:container . /home/container/
+# Copy and install to system Python (as root)
+COPY . /opt/astra/
+RUN cd /opt/astra && pip install --no-cache-dir . && \
+    pip install --no-cache-dir discord-py python-dotenv aiohttp pydantic watchdog Pillow
 
-# Install the package
-RUN pip install --no-cache-dir -e /home/container
+# Copy static assets to system location
+RUN cp -r /opt/astra/themes /opt/astra-assets/ && \
+    cp -r /opt/astra/assets /opt/astra-assets/
 
 # Verify installation
-RUN python -c "import astra; print('Astra installed successfully')"
+RUN python -c "import astra; print('Astra installed:', astra.__file__)"
 
-# Create data directory
-RUN mkdir -p /home/container/data && chown -R container:container /home/container
+# Fix permissions
+RUN chmod -R 755 /usr/local/lib/python3.10/site-packages/astra*
 
 # Switch to container user
 USER container
 
-# Set environment
+# Environment
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV USER=container
 ENV HOME=/home/container
 
-# Run
+# Default command
 CMD ["python", "-m", "astra"]
