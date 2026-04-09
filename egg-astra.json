@@ -7,24 +7,23 @@
     "exported_at": "2026-04-08",
     "name": "Astra Tarot Bot",
     "author": "mystiatech@fullmooncyberworks.com",
-    "description": "Discord tarot reading bot with dynamic themes and hot-reload",
+    "description": "Discord tarot reading bot with dynamic themes",
     "features": null,
     "docker_images": {
-        "ghcr.io\/mystiatech\/astra-bot:latest": "ghcr.io\/mystiatech\/astra-bot:latest",
-        "python:3.10-slim": "python:3.10-slim"
+        "mystiatech/astra-bot:latest": "mystiatech/astra-bot:latest"
     },
     "file_denylist": "",
     "startup": "python -m astra",
     "config": {
-        "files": "{\n    \".env\": {\n        \"parser\": \"properties\",\n        \"find\": {\n            \"DISCORD_TOKEN\": \"{{server.build.env.DISCORD_TOKEN}}\"\n        }\n    }\n}",
-        "startup": "{\n    \"done\": \"Synced.*slash commands\"\n}",
+        "files": "{}",
+        "startup": "{\n    \"done\": \"Astra is online\"\n}",
         "logs": "{}",
         "stop": "^C"
     },
     "scripts": {
         "installation": {
-            "script": "#!/bin\/bash\n# Astra Installation Script for Pterodactyl\n\ncd \/home\/container\n\n# Clone repository\necho \"Cloning Astra repository...\"\nif [ -d .git ]; then\n    git pull\nelse\n    git clone {{REPO_URL}} .\nfi\n\n# Install dependencies\necho \"Installing dependencies...\"\npip install --user --no-cache-dir -e .\n\n# Create necessary directories\nmkdir -p data themes\n\necho \"Installation complete!\"",
-            "container": "python:3.10-slim",
+            "script": "#!/bin/bash\n# Astra Installation Script for Pterodactyl\n\ncd /home/container\n\n# Clone repository if not present\nif [ ! -d \".git\" ]; then\n    echo \"Cloning Astra repository...\"\n    git clone {{REPO_URL}} . --depth 1\nelse\n    echo \"Repository exists, skipping clone\"\nfi\n\n# Install dependencies if pyproject.toml exists\nif [ -f \"pyproject.toml\" ]; then\n    echo \"Installing dependencies...\"\n    pip install --user --no-cache-dir -e .\nelse\n    echo \"pyproject.toml not found, skipping pip install\"\nfi\n\n# Create necessary directories\nmkdir -p data themes\n\necho \"Installation complete!\"",
+            "container": "mystiatech/astra-bot:latest",
             "entrypoint": "bash"
         }
     },
@@ -33,7 +32,7 @@
             "name": "Repository URL",
             "description": "Git repository URL for Astra",
             "env_variable": "REPO_URL",
-            "default_value": "https:\/\/giteas.fullmooncyberworks.com\/mystiatech\/Astra.git",
+            "default_value": "https://giteas.fullmooncyberworks.com/mystiatech/Astra.git",
             "user_viewable": true,
             "user_editable": true,
             "rules": "required|string",
@@ -57,16 +56,6 @@
             "user_viewable": true,
             "user_editable": true,
             "rules": "required|in:DEBUG,INFO,WARNING,ERROR",
-            "field_type": "text"
-        },
-        {
-            "name": "Auto Update",
-            "description": "Automatically pull updates on server start",
-            "env_variable": "AUTO_UPDATE",
-            "default_value": "0",
-            "user_viewable": true,
-            "user_editable": true,
-            "rules": "boolean",
             "field_type": "text"
         }
     ]

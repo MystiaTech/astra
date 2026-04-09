@@ -1,58 +1,54 @@
-# Astra Tarot Bot - Secure Docker Image
-# =====================================
-# Uses python:3.10-alpine for minimal CVE surface
+# Astra Tarot Bot - Pterodactyl Compatible Image
+# ==============================================
 
-FROM python:3.10-alpine
+FROM python:3.10-slim
 
 LABEL maintainer="Astra Team"
-LABEL description="Astra Tarot Discord Bot"
+LABEL description="Astra Tarot Discord Bot for Pterodactyl"
 
-# Install security updates and required packages
-RUN apk update && \
-    apk upgrade && \
-    apk add --no-cache \
-        git \
-        gcc \
-        musl-dev \
-        libffi-dev \
-    && rm -rf /var/cache/apk/*
+# Install git and other dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
 
-# Create non-root user for security
-RUN adduser -D -h /home/container container
+# Create container user and directory
+RUN useradd -m -d /home/container -s /bin/bash container
 
 # Set working directory
 WORKDIR /home/container
 
-# Copy and install dependencies first (better caching)
-COPY pyproject.toml ./
-RUN pip install --no-cache-dir --user \
+# Pre-install dependencies (for faster startup)
+RUN pip install --no-cache-dir \
     discord-py>=2.3.0 \
     python-dotenv>=1.0.0 \
     aiohttp>=3.9.0 \
     pydantic>=2.5.0 \
     watchdog>=3.0.0 \
-    Pillow>=10.0.0
+    Pillow>=10.0.0 \
+    pytest>=7.4.0 \
+    pytest-asyncio>=0.21.0
 
 # Copy application code
-COPY src/ ./src/
-COPY themes/ ./themes/
-COPY assets/ ./assets/
+COPY --chown=container:container src/ ./src/
+COPY --chown=container:container themes/ ./themes/
+COPY --chown=container:container assets/ ./assets/
+COPY --chown=container:container tests/ ./tests/
+COPY --chown=container:container pyproject.toml ./
+COPY --chown=container:container README.md ./
 
-# Create data directory and set permissions
-RUN mkdir -p /home/container/data && \
+# Create necessary directories
+RUN mkdir -p /home/container/data /home/container/logs && \
     chown -R container:container /home/container
 
-# Switch to non-root user
+# Switch to container user
 USER container
 
 # Set environment
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
-ENV PATH="/home/container/.local/bin:${PATH}"
+ENV USER=container
+ENV HOME=/home/container
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import sys; sys.exit(0)" || exit 1
-
-# Run
-ENTRYPOINT ["python", "-m", "astra"]
+# Default command (can be overridden by Pterodactyl)
+CMD ["python", "-m", "astra"]

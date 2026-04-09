@@ -10,7 +10,8 @@ __pycache__/
 .Python
 *.egg-info/
 .eggs/
-*.egg
+dist/
+build/
 
 # Virtual environments
 venv/
@@ -24,31 +25,22 @@ env/
 *.swp
 *.swo
 
-# Environment (don't copy .env - use Pterodactyl's env vars)
+# Environment (don't copy .env)
 .env
 .env.local
 
-# Tests (not needed in production image)
-tests/
+# Tests
+tests/__pycache__/
 .pytest_cache/
 .coverage
 
-# Documentation (keep README for reference)
+# Documentation (keep for reference)
 # README.md
-SETUP_GUIDE.md
-TEAM_ASSIGNMENTS.md
-
-# Build artifacts
-build/
-dist/
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Node (if any)
-node_modules/
-
-# Logs
-*.log
-logs/
+# Keep these for Pterodactyl
+# data/
+# themes/
