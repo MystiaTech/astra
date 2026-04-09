@@ -16,7 +16,7 @@
     "startup": "python -m astra || (cp -r /opt/astra-assets/themes . 2>/dev/null; cp -r /opt/astra-assets/assets . 2>/dev/null; python -m astra)",
     "config": {
         "files": "{}",
-        "startup": "{\n    \"done\": \"Astra is online\"\n}",
+        "startup": "{\n    \"done\": \"Astra is ready\"\n}",
         "logs": "{}",
         "stop": "^C"
     },

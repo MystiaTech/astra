@@ -90,8 +90,12 @@ class AstraBot(commands.Bot):
     
     async def on_ready(self):
         """Called when bot is ready."""
+        # Main log message
         logger.info(f"Astra is online! Logged in as {self.user} (ID: {self.user.id})")
         logger.info(f"Bot is in {len(self.guilds)} guilds")
+        
+        # Print a clear message for Pterodactyl startup detection
+        print("✅ Astra is ready and listening for commands", flush=True)
     
     async def on_error(self, event_method: str, *args, **kwargs):
         """Handle errors."""
