@@ -174,8 +174,17 @@ def generate_all_placeholders(output_dir: str = "."):
         ("XXI", "The World"),
     ]
     
+    # Roman numeral to integer mapping
+    roman_to_int = {
+        '0': 0, 'I': 1, 'II': 2, 'III': 3, 'IV': 4, 'V': 5,
+        'VI': 6, 'VII': 7, 'VIII': 8, 'IX': 9, 'X': 10,
+        'XI': 11, 'XII': 12, 'XIII': 13, 'XIV': 14, 'XV': 15,
+        'XVI': 16, 'XVII': 17, 'XVIII': 18, 'XIX': 19, 'XX': 20, 'XXI': 21
+    }
+    
     for num, name in major_arcana:
-        filename = f"major_{int(num):02d}_{name.lower().replace(' ', '_')}.png"
+        num_int = roman_to_int.get(num, 0)
+        filename = f"major_{num_int:02d}_{name.lower().replace(' ', '_')}.png"
         generate_card("major", name, num, os.path.join(output_dir, filename))
     
     # Minor Arcana suits
