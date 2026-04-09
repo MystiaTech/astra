@@ -1,13 +1,13 @@
 """
 Discord Embeds for Astra
 ========================
-IMPLEMENTATION BY: Olivia (UX/Frontend Lead)
+IMPLEMENTATION BY: Olivia (UX Lead)
 
 Rich embeds for displaying tarot readings with beautiful formatting.
 """
 
 import discord
-from typing import Optional
+from typing import Optional, List
 
 from .data import Card, Spread, SpreadPosition
 from .reading import Reading, ReadingResult
@@ -17,21 +17,22 @@ from .reading import Reading, ReadingResult
 COLORS = {
     "primary": 0x9B59B6,      # Mystic Purple
     "secondary": 0xE74C3C,    # Reversed Red
-    "major_arcana": 0xF1C40F, # Gold
-    "wands": 0xE67E22,        # Fire Orange
-    "cups": 0x3498DB,         # Water Blue
+    "major_arcana": 0xFFD700, # Gold
+    "wands": 0xFF6B35,        # Fire Orange
+    "cups": 0x4ECDC4,         # Water Teal
     "swords": 0x95A5A6,       # Air Silver
     "pentacles": 0x27AE60,    # Earth Green
     "info": 0x3498DB,         # Info Blue
     "success": 0x2ECC71,      # Success Green
     "warning": 0xF39C12,      # Warning Orange
+    "dark": 0x2C3E50,         # Dark background
 }
 
 SUIT_EMOJIS = {
-    "MAJOR": "🌟",
+    "MAJOR": "⭐",
     "WANDS": "🔥",
     "CUPS": "💧",
-    "SWORDS": "💨",
+    "SWORDS": "⚔️",
     "PENTACLES": "🌍",
 }
 
@@ -64,113 +65,90 @@ def create_reading_embed(
     spread: Spread
 ) -> discord.Embed:
     """
-    Create the main reading result embed.
-    
-    This is the primary display for a completed tarot reading.
+    Create the main reading result embed with polished formatting.
     """
-    # Main embed
+    # Main embed with spread color
     embed = discord.Embed(
         title=f"🔮 {spread.name}",
-        description=_create_reading_description(reading, spread),
+        description=f"*{spread.description}*\n\n✨ {spread.num_cards} cards drawn • Take a moment to reflect...",
         color=COLORS["primary"],
         timestamp=reading.timestamp
     )
     
-    # Add question if provided
+    # Question if provided
     if reading.question:
         embed.add_field(
-            name="❓ Question",
-            value=f"*{reading.question}*",
+            name="🌙 Your Question",
+            value=f"> *{reading.question[:200]}*" + ("..." if len(reading.question) > 200 else ""),
             inline=False
         )
     
-    # Add each card as a field
+    # Cards section
     for i, result in enumerate(reading.results):
         position = spread.positions[i] if i < len(spread.positions) else None
-        field_value = _create_card_field_value(result, position)
+        
+        # Card field with better formatting
+        emoji = POSITION_EMOJIS[result.position - 1] if result.position <= len(POSITION_EMOJIS) else "🃏"
+        suit_emoji = get_suit_emoji(result.card)
+        card_name = result.card.get_display_name(reversed=result.reversed)
+        
+        # Position title
+        position_title = f"{emoji} **{position.name}**" if position else f"{emoji} Card {result.position}"
+        
+        # Card subtitle
+        card_subtitle = f"{suit_emoji} {card_name}"
+        
+        # Build value
+        value_parts = []
+        
+        # Position meaning (italic, smaller)
+        if position:
+            value_parts.append(f"*{position.meaning}*")
+        
+        # Keywords in a nice format
+        keywords = result.get_keywords()
+        if keywords:
+            keyword_str = " • ".join(f"`{k}`" for k in keywords[:5])
+            value_parts.append(f"\n**Keywords:** {keyword_str}")
+        
+        # Interpretation
+        interpretation = result.get_interpretation()
+        if len(interpretation) > 250:
+            interpretation = interpretation[:247] + "..."
+        value_parts.append(f"\n{interpretation}")
+        
+        field_value = "\n".join(value_parts)
         
         embed.add_field(
-            name=_create_card_field_name(result, position),
+            name=f"{position_title}\n{card_subtitle}",
             value=field_value,
             inline=False
         )
     
-    # Add summary/interpretation
+    # Reading summary - more concise
     summary = _create_reading_summary(reading, spread)
     if summary:
         embed.add_field(
-            name="🌙 Reading Summary",
+            name="✨ Reading Insights",
             value=summary,
             inline=False
         )
     
-    # Footer
+    # Footer with reading stats
+    footer_text = f"Reading for {user.display_name} • {spread.num_cards} cards • {reading.count_reversed()} reversed"
     embed.set_footer(
-        text=f"Reading for {user.display_name} • {len(reading.results)} cards • "
-             f"{reading.count_reversed()} reversed",
+        text=footer_text,
         icon_url=user.display_avatar.url if user.display_avatar else None
     )
-    
-    # Thumbnail - placeholder for now
-    embed.set_thumbnail(url="attachment://astra_icon.png")
     
     return embed
 
 
-def _create_reading_description(reading: Reading, spread: Spread) -> str:
-    """Create the embed description."""
-    lines = [
-        f"*{spread.description}*",
-        "",
-        f"This reading uses **{spread.num_cards} cards** and takes approximately "
-        f"**{spread.estimated_time}** to contemplate.",
-    ]
-    return "\n".join(lines)
-
-
-def _create_card_field_name(result: ReadingResult, position: Optional[SpreadPosition]) -> str:
-    """Create the field name for a card."""
-    emoji = POSITION_EMOJIS[result.position - 1] if result.position <= len(POSITION_EMOJIS) else "🃏"
-    suit_emoji = get_suit_emoji(result.card)
-    card_name = result.card.get_display_name(reversed=result.reversed)
-    
-    if position:
-        return f"{emoji} Position {result.position}: {position.name}\n{suit_emoji} {card_name}"
-    else:
-        return f"{emoji} {card_name}"
-
-
-def _create_card_field_value(result: ReadingResult, position: Optional[SpreadPosition]) -> str:
-    """Create the field value for a card."""
-    lines = []
-    
-    # Position meaning
-    if position:
-        lines.append(f"**{position.meaning}**")
-        lines.append(f"*{position.description[:100]}...*" if len(position.description) > 100 
-                     else f"*{position.description}*")
-        lines.append("")
-    
-    # Keywords
-    keywords = result.get_keywords()
-    keyword_str = " • ".join(f"`{k}`" for k in keywords[:4])
-    lines.append(f"**Keywords:** {keyword_str}")
-    
-    # Interpretation
-    interpretation = result.get_interpretation()
-    # Truncate if too long
-    if len(interpretation) > 200:
-        interpretation = interpretation[:197] + "..."
-    lines.append(f"\n{interpretation}")
-    
-    return "\n".join(lines)
-
-
 def _create_reading_summary(reading: Reading, spread: Spread) -> str:
-    """Create a summary interpretation of the reading."""
+    """Create a concise summary interpretation of the reading."""
     lines = []
     
-    # Count suits
+    # Elemental balance
     suit_counts = {}
     major_count = 0
     for result in reading.results:
@@ -180,33 +158,26 @@ def _create_reading_summary(reading: Reading, spread: Spread) -> str:
             suit = result.card.suit.name
             suit_counts[suit] = suit_counts.get(suit, 0) + 1
     
-    # Elemental balance interpretation
+    # Dominant energy
     if major_count >= len(reading.results) / 2:
-        lines.append("🌟 **Major Arcana Dominant**: Significant life lessons and karmic forces are at work. "
-                    "This situation carries deep spiritual significance.")
+        lines.append("🌟 **Major Arcana present** — Significant spiritual forces at work")
     elif suit_counts:
         dominant_suit = max(suit_counts, key=suit_counts.get)
-        suit_meanings = {
-            "WANDS": "🔥 **Fire Energy (Wands)**: Action, creativity, and passion drive this situation. "
-                    "Focus on initiative and personal power.",
-            "CUPS": "💧 **Water Energy (Cups)**: Emotions, relationships, and intuition are central. "
-                   "Trust your feelings and connections.",
-            "SWORDS": "💨 **Air Energy (Swords)**: Intellect, communication, and decisions matter most. "
-                     "Clear thinking will guide you.",
-            "PENTACLES": "🌍 **Earth Energy (Pentacles)**: Material concerns, stability, and practical matters "
-                        "are the focus. Ground yourself in reality.",
+        suit_messages = {
+            "WANDS": "🔥 **Fire energy** — Action, creativity, and passion drive this situation",
+            "CUPS": "💧 **Water energy** — Emotions, relationships, and intuition are central",
+            "SWORDS": "⚔️ **Air energy** — Intellect, decisions, and clarity matter most",
+            "PENTACLES": "🌍 **Earth energy** — Material concerns and practical matters are the focus",
         }
-        if dominant_suit in suit_meanings:
-            lines.append(suit_meanings[dominant_suit])
+        if dominant_suit in suit_messages:
+            lines.append(suit_messages[dominant_suit])
     
     # Reversed cards note
     reversed_count = reading.count_reversed()
     if reversed_count > len(reading.results) / 2:
-        lines.append("\n🔄 **Many Reversed Cards**: Internal or blocked energies are significant. "
-                    "Consider what may need to be released or reconsidered.")
+        lines.append("\n🔄 Many reversed cards suggest blocked or internal energies to address")
     elif reversed_count == 0 and len(reading.results) >= 3:
-        lines.append("\n✨ **All Cards Upright**: Clear, direct energy flows through this situation. "
-                    "The path forward is relatively unobstructed.")
+        lines.append("\n✨ Clear forward energy — the path is relatively unobstructed")
     
     return "\n".join(lines) if lines else ""
 
@@ -217,41 +188,25 @@ def create_spread_info_embed() -> discord.Embed:
     
     embed = discord.Embed(
         title="🔮 Available Tarot Spreads",
-        description="Astra offers several spreads for different types of inquiries. "
-                   "Choose the one that best fits your needs.",
+        description="Choose the spread that resonates with your question.",
         color=COLORS["info"]
     )
     
     for spread_key in SPREAD_DISPLAY_ORDER:
         spread = SPREADS[spread_key]
         
-        # Create field value
-        value_lines = [
-            f"*{spread.description}*",
-            f"\n**Cards:** {spread.num_cards}",
-            f"**Time:** ~{spread.estimated_time}",
-            f"**Difficulty:** {spread.difficulty}",
-            "\n**Best for:**"
-        ]
+        emoji = "⭐" if spread.difficulty == "Beginner" else "🌙" if spread.difficulty == "Intermediate" else "✨"
         
-        # Add best uses
-        for use in spread.best_for[:3]:
-            value_lines.append(f"• {use}")
-        
-        # Command reference
-        cmd_name = spread_key.replace("_", "-")
-        value_lines.append(f"\n*Use: `/tarot-{cmd_name}`*")
+        value = f"*{spread.description[:60]}...*\n" if len(spread.description) > 60 else f"*{spread.description}*\n"
+        value += f"📊 {spread.num_cards} cards • ⏱️ ~{spread.estimated_time} • 📈 {spread.difficulty}"
         
         embed.add_field(
-            name=f"📜 {spread.name}",
-            value="\n".join(value_lines),
+            name=f"{emoji} {spread.name}",
+            value=value,
             inline=True
         )
     
-    embed.set_footer(
-        text="Astra serves one seeker at a time to provide focused readings 🌙"
-    )
-    
+    embed.set_footer(text="Astra serves one seeker at a time 🌙")
     return embed
 
 
@@ -259,129 +214,204 @@ def create_help_embed() -> discord.Embed:
     """Create the help embed."""
     embed = discord.Embed(
         title="🔮 Astra - Tarot Reading Bot",
-        description=(
-            "Welcome, seeker. I am Astra, your guide through the mysteries of the tarot. "
-            "I offer authentic readings using the wisdom of the 78 cards.\n\n"
-            "**I serve one seeker at a time** to ensure each reading receives "
-            "my full attention and energy."
-        ),
+        description="Welcome, seeker. I am Astra, your guide through the mysteries of the tarot.",
         color=COLORS["primary"]
     )
     
-    # Commands section
     embed.add_field(
         name="📖 Reading Commands",
         value=(
-            "`/tarot-single` - Quick single card guidance\n"
-            "`/tarot-three` - Past, Present, Future spread\n"
-            "`/tarot-mind-body-spirit` - Holistic self-examination\n"
-            "`/tarot-situation-action` - Problem-solving spread\n"
-            "`/tarot-relationship` - Relationship dynamics\n"
-            "`/tarot-career` - Career guidance\n"
-            "`/tarot-celtic` - Full Celtic Cross (10 cards)"
+            "`/tarot-single` — Quick single card\n"
+            "`/tarot-three` — Past, Present, Future\n"
+            "`/tarot-celtic` — Full Celtic Cross (10 cards)\n"
+            "`/tarot-relationship` — Relationship insights\n"
+            "`/tarot-career` — Career guidance"
         ),
         inline=False
     )
     
     embed.add_field(
-        name="ℹ️ Information Commands",
+        name="📔 Journal Commands",
         value=(
-            "`/tarot-spreads` - Learn about all spreads\n"
-            "`/tarot-help` - Show this help message\n"
-            "`/tarot-cancel` - Cancel your current reading"
+            "`/tarot-journal` — View your saved readings\n"
+            "`/tarot-save` — Save this reading to your journal"
         ),
         inline=False
     )
     
     embed.add_field(
-        name="🃏 About Reversed Cards",
+        name="🎨 Theme Commands",
         value=(
-            "Each reading allows reversed cards by default. Reversed cards "
-            "offer additional depth, showing blocked energy, internal dynamics, "
-            "or alternative perspectives. You can disable them in any command."
+            "`/tarot-theme` — Change your card deck\n"
+            "`/tarot-themes` — Browse available decks"
         ),
         inline=False
     )
     
     embed.add_field(
-        name="✨ Tips for Best Results",
+        name="✨ Tips",
         value=(
             "• Take time to contemplate each card\n"
-            "• Consider how cards relate to each other\n"
-            "• Trust your intuition about the meanings\n"
-            "• The future is not fixed—use readings as guidance\n"
-            "• Return when you feel called to"
+            "• Trust your intuition about meanings\n"
+            "• The future is not fixed — use as guidance\n"
+            "• Save readings to your journal for reflection"
         ),
         inline=False
     )
     
     embed.set_footer(text="May the stars guide your path 🌟")
-    
     return embed
 
 
-def create_waiting_embed(position: int, total_users: int) -> discord.Embed:
-    """Create an embed for when users are waiting."""
+def create_journal_embed(readings: list, user: discord.User, page: int = 1, per_page: int = 5) -> discord.Embed:
+    """Create embed showing user's saved readings."""
     embed = discord.Embed(
-        title="🔮 Please Wait",
-        description=(
-            f"You are **position {position}** in line.\n\n"
-            f"Astra serves one seeker at a time to ensure each reading "
-            f"receives her full attention. There {'is' if total_users == 1 else 'are'} "
-            f"{total_users} user{'s' if total_users != 1 else ''} ahead of you."
-        ),
-        color=COLORS["warning"]
+        title="📔 Your Tarot Journal",
+        description=f"Personal readings for {user.display_name}",
+        color=COLORS["info"]
     )
+    
+    if not readings:
+        embed.description += "\n\n*Your journal is empty. Save readings with `/tarot-save`!*"
+        return embed
+    
+    # Calculate pagination
+    total_pages = (len(readings) + per_page - 1) // per_page
+    start = (page - 1) * per_page
+    end = start + per_page
+    page_readings = readings[start:end]
+    
+    for i, entry in enumerate(page_readings, start + 1):
+        date_str = entry.get('timestamp', 'Unknown date')
+        spread = entry.get('spread_type', 'Unknown spread')
+        question = entry.get('question', 'No question')
+        cards = entry.get('cards', [])
+        
+        card_names = [c.get('name', 'Unknown') for c in cards[:3]]
+        cards_str = ", ".join(card_names)
+        if len(cards) > 3:
+            cards_str += f" +{len(cards) - 3} more"
+        
+        value = f"📊 {spread} • 🃏 {cards_str}"
+        if question:
+            value += f"\n🌙 *{question[:60]}...*" if len(question) > 60 else f"\n🌙 *{question}*"
+        
+        embed.add_field(
+            name=f"#{i} • {date_str}",
+            value=value,
+            inline=False
+        )
+    
+    embed.set_footer(text=f"Page {page}/{max(1, total_pages)} • {len(readings)} total readings 🌙")
     return embed
 
 
-def create_session_expired_embed() -> discord.Embed:
-    """Create an embed for expired sessions."""
-    return discord.Embed(
-        title="🔮 Session Expired",
-        description=(
-            "Your reading session has expired after 5 minutes of inactivity.\n\n"
-            "If you would like another reading, please use a tarot command again."
-        ),
-        color=COLORS["secondary"]
-    )
-
-
-def create_card_detail_embed(result: ReadingResult) -> discord.Embed:
-    """
-    Create a detailed embed for a single card.
-    
-    Useful for deep card study or daily card draws.
-    """
-    card = result.card
-    color = get_card_color(card, result.reversed)
+def create_journal_entry_embed(entry: dict, user: discord.User) -> discord.Embed:
+    """Create detailed embed for a single journal entry."""
+    spread_type = entry.get('spread_type', 'Reading')
+    question = entry.get('question')
+    cards = entry.get('cards', [])
+    date_str = entry.get('timestamp', 'Unknown date')
     
     embed = discord.Embed(
-        title=f"{get_suit_emoji(card)} {card.get_display_name(result.reversed)}",
-        description=result.get_interpretation(),
-        color=color
+        title=f"📔 Journal Entry • {spread_type}",
+        description=f"Saved on {date_str}",
+        color=COLORS["primary"]
     )
     
-    # Keywords
-    keywords = result.get_keywords()
+    if question:
+        embed.add_field(
+            name="🌙 Question",
+            value=f"*{question}*",
+            inline=False
+        )
+    
+    for card in cards:
+        card_name = card.get('name', 'Unknown')
+        position = card.get('position', 0)
+        reversed = card.get('reversed', False)
+        meaning = card.get('meaning', '')
+        
+        emoji = POSITION_EMOJIS[position - 1] if position <= len(POSITION_EMOJIS) else "🃏"
+        status = " (Reversed)" if reversed else ""
+        
+        embed.add_field(
+            name=f"{emoji} {card_name}{status}",
+            value=meaning[:200] + "..." if len(meaning) > 200 else meaning,
+            inline=False
+        )
+    
+    embed.set_footer(text=f"Reading for {user.display_name} 🌟")
+    return embed
+
+
+def create_save_confirmation_embed(reading: Reading) -> discord.Embed:
+    """Create confirmation when reading is saved."""
+    embed = discord.Embed(
+        title="📔 Reading Saved",
+        description="This reading has been added to your personal journal.",
+        color=COLORS["success"]
+    )
+    
     embed.add_field(
-        name="Keywords",
-        value=" • ".join(f"`{k}`" for k in keywords),
+        name="Details",
+        value=(
+            f"📊 {reading.spread_type}\n"
+            f"🃏 {len(reading.results)} cards\n"
+            f"🕐 {reading.timestamp.strftime('%Y-%m-%d %H:%M')}"
+        ),
         inline=False
     )
     
-    # Card details
-    if card.is_major:
-        embed.add_field(name="Arcana", value="Major Arcana", inline=True)
+    embed.set_footer(text="View your journal with /tarot-journal 🌙")
+    return embed
+
+
+def create_theme_selection_embed(
+    themes: List,
+    user_name: str,
+    is_first_time: bool = False
+) -> discord.Embed:
+    """Create the theme selection embed."""
+    if is_first_time:
+        title = "🎨 Welcome to Astra!"
+        description = f"Hello {user_name}! Choose a deck that speaks to you."
     else:
-        embed.add_field(name="Suit", value=card.suit.name.title(), inline=True)
-        if card.element:
-            embed.add_field(name="Element", value=card.element, inline=True)
+        title = "🎨 Select Your Deck"
+        description = "Choose a tarot deck theme for your readings."
     
-    if card.astrology:
-        embed.add_field(name="Astrology", value=card.astrology, inline=True)
+    embed = discord.Embed(
+        title=title,
+        description=description,
+        color=COLORS["primary"]
+    )
     
-    # Image placeholder note
-    embed.set_image(url=f"attachment://{card.image_placeholder}")
+    for i, theme in enumerate(themes[:10], 1):
+        emoji = "⭐" if theme.is_default else "🃏"
+        desc = theme.description[:80] + "..." if len(theme.description) > 80 else theme.description
+        
+        embed.add_field(
+            name=f"{emoji} {i}. {theme.name}",
+            value=f"*{desc}*",
+            inline=True
+        )
     
+    return embed
+
+
+def create_theme_selected_embed(theme, user_name: str) -> discord.Embed:
+    """Confirmation embed when a user selects a theme."""
+    embed = discord.Embed(
+        title="✅ Deck Selected",
+        description=f"**{user_name}**, you've chosen **{theme.name}**!",
+        color=COLORS["success"]
+    )
+    
+    embed.add_field(
+        name="About This Deck",
+        value=theme.description,
+        inline=False
+    )
+    
+    embed.set_footer(text="Ready to begin? Use /tarot-single 🔮")
     return embed

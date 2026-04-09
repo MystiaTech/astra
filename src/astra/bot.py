@@ -19,9 +19,15 @@ from discord.ext import commands
 
 from .data import TAROT_DECK, SPREADS, Card, Spread
 from .reading import Reading, ReadingSession, ReadingResult
-from .embeds import create_reading_embed, create_spread_info_embed, create_help_embed
+from .embeds import (
+    create_reading_embed,
+    create_spread_info_embed,
+    create_help_embed,
+    create_save_confirmation_embed
+)
 from .themes import get_theme_manager
 from .theme_commands import ThemeCommands, prompt_theme_selection
+from .journal_commands import JournalCommands, save_reading_to_journal
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +79,7 @@ class AstraBot(commands.Bot):
         # Add command cogs
         await self.add_cog(TarotCommands(self))
         await self.add_cog(ThemeCommands(self))
+        await self.add_cog(JournalCommands(self))
         
         # Sync slash commands
         try:
@@ -425,7 +432,44 @@ class TarotCommands(commands.Cog):
                 spread=SPREADS[spread_type]
             )
             
-            await interaction.followup.send(embed=embed)
+            # Create save button
+            view = discord.ui.View(timeout=300)  # 5 minute timeout
+            save_btn = discord.ui.Button(
+                label="📔 Save to Journal",
+                style=discord.ButtonStyle.success,
+                custom_id="save_reading"
+            )
+            
+            async def save_callback(btn_interaction: discord.Interaction):
+                """Handle save button click."""
+                if btn_interaction.user.id != interaction.user.id:
+                    await btn_interaction.response.send_message(
+                        "This isn't your reading!", ephemeral=True
+                    )
+                    return
+                
+                success = await save_reading_to_journal(
+                    str(interaction.user.id),
+                    reading,
+                    btn_interaction
+                )
+                
+                if success:
+                    confirm_embed = create_save_confirmation_embed(reading)
+                    await btn_interaction.response.send_message(
+                        embed=confirm_embed,
+                        ephemeral=True
+                    )
+                else:
+                    await btn_interaction.response.send_message(
+                        "❌ Could not save. Your journal may be full (max 100 entries).",
+                        ephemeral=True
+                    )
+            
+            save_btn.callback = save_callback
+            view.add_item(save_btn)
+            
+            await interaction.followup.send(embed=embed, view=view)
             
             # Release session after a short delay to allow reading
             await asyncio.sleep(2)
