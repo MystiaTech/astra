@@ -26,6 +26,14 @@ Astra is a Discord bot that provides authentic tarot readings including single c
 
 ## Installation
 
+### Quick Deploy Options
+
+| Method | Difficulty | Best For |
+|--------|------------|----------|
+| [Local](#local-setup) | Easy | Development, testing |
+| [Pterodactyl](#pterodactyl-deployment) | Medium | Production hosting |
+| [Docker](#docker) | Medium | Containerized deployments |
+
 ### 1. Discord Setup
 
 1. Go to [Discord Developer Portal](https://discord.com/developers/applications)
@@ -68,6 +76,32 @@ python -m astra
 ```
 
 **Need help setting up?** See [SETUP_GUIDE.md](SETUP_GUIDE.md) for detailed Discord Developer Portal instructions.
+
+### Pterodactyl Deployment
+
+See [PTERODACTYL.md](PTERODACTYL.md) for complete Pterodactyl panel deployment instructions.
+
+Quick steps:
+1. Import `egg-astra.json` into your Pterodactyl panel
+2. Create a server with the Astra egg
+3. Set your `DISCORD_TOKEN` environment variable
+4. Start the server
+
+### Docker Deployment
+
+```bash
+# Pull pre-built image
+docker pull ghcr.io/mystiatech/astra:latest
+
+# Run with your token
+docker run -e DISCORD_TOKEN=your_token_here ghcr.io/mystiatech/astra:latest
+```
+
+Or build locally:
+```bash
+docker build -t astra .
+docker run -e DISCORD_TOKEN=your_token_here astra
+```
 
 ## Required Bot Permissions
 

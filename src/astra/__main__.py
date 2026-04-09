@@ -2,18 +2,24 @@
 import asyncio
 import logging
 import os
+import sys
 
-from dotenv import load_dotenv
+# Try to load dotenv, but don't fail if not installed
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
 from .bot import AstraBot
-
-# Load environment variables
-load_dotenv()
 
 # Configure logging
 logging.basicConfig(
     level=getattr(logging, os.getenv("LOG_LEVEL", "INFO")),
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
 )
 logger = logging.getLogger(__name__)
 

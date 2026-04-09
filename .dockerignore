@@ -1,0 +1,54 @@
+# Git
+.git/
+.gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+*.egg
+
+# Virtual environments
+venv/
+.venv/
+ENV/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment (don't copy .env - use Pterodactyl's env vars)
+.env
+.env.local
+
+# Tests (not needed in production image)
+tests/
+.pytest_cache/
+.coverage
+
+# Documentation (keep README for reference)
+# README.md
+SETUP_GUIDE.md
+TEAM_ASSIGNMENTS.md
+
+# Build artifacts
+build/
+dist/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node (if any)
+node_modules/
+
+# Logs
+*.log
+logs/
