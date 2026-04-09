@@ -4,6 +4,8 @@ on:
   push:
     branches: [ main ]
     tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
 
 env:
   GHCR_REGISTRY: ghcr.io
@@ -11,18 +13,59 @@ env:
   IMAGE_NAME: mystiatech/astra-bot
 
 jobs:
-  build-standard:
+  # Quick test build for PRs (no push)
+  test-build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-
+    if: github.event_name == 'pull_request'
     steps:
     - name: Checkout
       uses: actions/checkout@v4
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
+
+    - name: Build test image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./Dockerfile.alpine
+        push: false
+        load: true
+        tags: astra:test
+        cache-from: type=gha,scope=test
+
+    - name: Test import
+      run: |
+        docker run --rm astra:test python -c "import astra; print('OK')"
+
+  # Build and push for main/tags
+  build:
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request'
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [standard, alpine]
+        include:
+          - variant: standard
+            dockerfile: ./Dockerfile
+            suffix: ""
+          - variant: alpine
+            dockerfile: ./Dockerfile.alpine
+            suffix: "-alpine"
+    
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      with:
+        driver-opts: image=moby/buildkit:master
 
     - name: Login to GHCR
       uses: docker/login-action@v3
@@ -45,79 +88,18 @@ jobs:
           ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_NAME }}
           ${{ env.DOCKERHUB_REGISTRY }}/${{ env.IMAGE_NAME }}
         tags: |
-          type=ref,event=branch
-          type=semver,pattern={{version}}
-          type=semver,pattern={{major}}.{{minor}}
-          type=sha,format=short
+          type=ref,event=branch,suffix=${{ matrix.suffix }}
+          type=semver,pattern={{version}},suffix=${{ matrix.suffix }}
+          type=sha,format=short,suffix=${{ matrix.suffix }}
 
     - name: Build and push
       uses: docker/build-push-action@v5
       with:
         context: .
+        file: ${{ matrix.dockerfile }}
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
-
-  build-alpine:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-
-    - name: Login to Docker Hub
-      uses: docker/login-action@v3
-      with:
-        username: ${{ secrets.DOCKER_USERNAME }}
-        password: ${{ secrets.DOCKER_PASSWORD }}
-
-    - name: Build and push Alpine
-      uses: docker/build-push-action@v5
-      with:
-        context: .
-        file: ./Dockerfile.alpine
-        push: true
-        tags: |
-          ${{ env.DOCKERHUB_REGISTRY }}/${{ env.IMAGE_NAME }}:alpine
-          ${{ env.DOCKERHUB_REGISTRY }}/${{ env.IMAGE_NAME }}:alpine-latest
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
-
-  build-distroless:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-
-    - name: Login to Docker Hub
-      uses: docker/login-action@v3
-      with:
-        username: ${{ secrets.DOCKER_USERNAME }}
-        password: ${{ secrets.DOCKER_PASSWORD }}
-
-    - name: Build and push Distroless
-      uses: docker/build-push-action@v5
-      with:
-        context: .
-        file: ./Dockerfile.distroless
-        push: true
-        tags: |
-          ${{ env.DOCKERHUB_REGISTRY }}/${{ env.IMAGE_NAME }}:distroless
-          ${{ env.DOCKERHUB_REGISTRY }}/${{ env.IMAGE_NAME }}:distroless-latest
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+        cache-from: type=gha,scope=${{ matrix.variant }}
+        cache-to: type=gha,mode=max,scope=${{ matrix.variant }}
+        platforms: linux/amd64
