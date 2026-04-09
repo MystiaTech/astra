@@ -66,26 +66,44 @@ def get_card_image_path(card: Card, reversed: bool = False) -> Optional[str]:
     # Check themes directory for card image
     suit_lower = card.suit.name.lower()
     
+    # Generate possible filenames
+    possible_filenames = []
+    
     if card.is_major:
-        filename = f"major_{card.number:02d}.png"
+        # Try with name (e.g., major_00_the_fool.png) and without (major_00.png)
+        card_name = card.name.lower().replace(" ", "_").replace("'", "")
+        possible_filenames.append(f"major_{card.number:02d}_{card_name}.png")
+        possible_filenames.append(f"major_{card.number:02d}.png")
     else:
+        suit = suit_lower
         if card.is_court:
             court_names = {11: "page", 12: "knight", 13: "queen", 14: "king"}
-            filename = f"{suit_lower}_{card.number:02d}_{court_names.get(card.number, card.number)}.png"
+            court_name = court_names.get(card.number, str(card.number))
+            card_name = card.name.lower().replace(" of ", "_").replace(" ", "_")
+            possible_filenames.append(f"{suit}_{card.number:02d}_{court_name}.png")
+            possible_filenames.append(f"{suit}_{card.number:02d}.png")
         else:
-            filename = f"{suit_lower}_{card.number:02d}.png"
+            # Number cards
+            if card.number == 1:
+                possible_filenames.append(f"{suit}_01_ace.png")
+                possible_filenames.append(f"{suit}_01.png")
+            else:
+                possible_filenames.append(f"{suit}_{card.number:02d}.png")
     
     # Check multiple locations
-    possible_paths = [
-        f"themes/default/{filename}",
-        f"themes/classic/{filename}",
-        f"assets/cards/{filename}",
-        f"/opt/astra-assets/themes/{filename}",
+    base_paths = [
+        "themes/default/",
+        "themes/classic/",
+        "assets/cards/",
+        "/opt/astra-assets/themes/",
+        "/home/container/themes/default/",
     ]
     
-    for path in possible_paths:
-        if os.path.exists(path):
-            return path
+    for base_path in base_paths:
+        for filename in possible_filenames:
+            full_path = base_path + filename
+            if os.path.exists(full_path):
+                return full_path
     
     return None
 
