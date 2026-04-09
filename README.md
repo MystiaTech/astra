@@ -89,19 +89,26 @@ Quick steps:
 
 ### Docker Deployment
 
+**Option 1: Pull Pre-built Image (when available)**
 ```bash
-# Pull pre-built image
 docker pull ghcr.io/mystiatech/astra:latest
-
-# Run with your token
 docker run -e DISCORD_TOKEN=your_token_here ghcr.io/mystiatech/astra:latest
 ```
 
-Or build locally:
+**Option 2: Build Locally**
 ```bash
 docker build -t astra .
 docker run -e DISCORD_TOKEN=your_token_here astra
 ```
+
+**Option 3: Gitea Actions (No Local Docker)**
+Build images automatically on push using Gitea Actions. See [GITEA_ACTIONS.md](GITEA_ACTIONS.md).
+
+Steps:
+1. Enable Actions in your Gitea instance
+2. Register a runner (see guide)
+3. Push code → Image builds automatically
+4. Pull from Gitea Container Registry
 
 ## Required Bot Permissions
 
