@@ -13,7 +13,9 @@ The standard `mystiatech/astra-bot:latest` image may have CVEs from the base Pyt
 |-----|------|-----------|------|----------|
 | `latest` | `python:3.10-slim` | ~100 | ~150MB | General use |
 | `alpine` | `python:3.10-alpine` | ~20 | ~80MB | **Recommended** |
-| `distroless` | `gcr.io/distroless` | ~5 | ~70MB | High security |
+| `distroless` | `gcr.io/distroless` | ~5 | ~70MB | High security* |
+
+*Note: Distroless images have no shell and are NOT compatible with Pterodactyl. Use for Kubernetes or Docker Compose only.
 
 ### Recommendation for Lower CVEs
 

@@ -3,262 +3,100 @@
 
 This guide explains how to deploy Astra on a Pterodactyl panel.
 
-## Quick Start
+## Recommended Image
 
-### Method 1: Using Docker Image (Recommended)
+For Pterodactyl, we recommend using either:
 
-1. Build and push the Docker image:
-```bash
-docker build -t your-registry/astra-bot:latest .
-docker push your-registry/astra-bot:latest
-```
+1. **`mystiatech/astra-bot:latest`** (Standard, ~100 CVEs) - Full compatibility
+2. **`mystiatech/astra-bot:alpine`** (Recommended, ~20 CVEs) - Good security balance
 
-2. In Pterodactyl, create a server using the Astra Egg
+**Note:** The `distroless` image does NOT work with Pterodactyl because it has no shell for the installation script.
 
-3. Set the environment variable:
-   - `DISCORD_TOKEN` - Your bot token
+## Quick Setup
 
-4. Start the server
+### 1. Import the Egg
 
-### Method 2: Using Git Clone (Egg with Git)
+1. Download `egg-astra.json` from the repository
+2. In Pterodactyl Admin: **Nests** → **Import Egg**
+3. Upload the JSON file
+4. Select a nest (e.g., "Discord Bots")
 
-1. Create a server with the "Astra" egg
-2. Set startup parameters:
-   - `REPO_URL`: `https://giteas.fullmooncyberworks.com/mystiatech/Astra.git`
-   - `BRANCH`: `main`
-3. Set environment variable:
-   - `DISCORD_TOKEN`: Your bot token
-4. Start the server - it will auto-pull and run
+### 2. Create Server
 
----
+| Setting | Value |
+|---------|-------|
+| **Egg** | Astra Tarot Bot |
+| **Docker Image** | `mystiatech/astra-bot:alpine` (recommended) |
+| **Startup Command** | `python -m astra` |
 
-## Pterodactyl Egg Configuration
+### 3. Set Environment Variables
 
-### Egg JSON
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DISCORD_TOKEN` | ✅ Yes | Your Discord bot token |
+| `LOG_LEVEL` | ❌ No | DEBUG/INFO/WARNING/ERROR |
 
-Create a new egg with these settings:
+### 4. Start Server
 
-**Name:** Astra Tarot Bot
-**Description:** Discord tarot reading bot with dynamic themes
-**Docker Image:** `python:3.10-slim` (or your custom image)
-**Startup Command:** `python -m astra`
+The server will:
+1. Pull the Docker image
+2. Run the startup command
+3. Show "Astra is ready" when online
 
-### Configuration Parser
+## Docker Image Comparison
 
-```json
-{
-  "config": {
-    "files": "{\
-    \".env\": {\n        \"parser\": \"properties\",\n        \"find\": {\n            \"DISCORD_TOKEN\": \"{{server.build.env.DISCORD_TOKEN}}\"\n        }\n    }\n}",
-    "startup": "{\n    \"done\": \"Synced.*slash commands\"\n}",
-    "logs": "{}",
-    "stop": "^C"
-  }
-}
-```
-
-### Startup Script
-
-```bash
-#!/bin/bash
-# Pterodactyl Startup Script for Astra
-
-cd /home/container
-
-# Export environment variables
-export DISCORD_TOKEN={{DISCORD_TOKEN}}
-export LOG_LEVEL={{LOG_LEVEL}}|INFO
-
-# Create .env file from environment
-cat > .env << EOF
-DISCORD_TOKEN=${DISCORD_TOKEN}
-LOG_LEVEL=${LOG_LEVEL}
-EOF
-
-# Run the bot
-python -m astra
-```
-
-### Environment Variables
-
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `DISCORD_TOKEN` | ✅ Yes | - | Your Discord bot token |
-| `LOG_LEVEL` | ❌ No | INFO | Logging level (DEBUG, INFO, WARNING, ERROR) |
-| `DEFAULT_READING_TIMEOUT` | ❌ No | 300 | Session timeout in seconds |
-
-### Image Configuration
-
-**Base Image:** `python:3.10-slim`
-
-**Installation Script:**
-```bash
-#!/bin/bash
-# Pterodactyl Installation Script
-
-cd /home/container
-
-# Clone the repository
-git clone {{REPO_URL}} . || git pull
-
-# Install dependencies
-pip install --user -e .
-
-echo "Astra installation complete!"
-```
-
----
-
-## Building Custom Docker Image
-
-### 1. Build Image
-
-```bash
-cd astra
-docker build -t your-dockerhub-username/astra-bot:v1.0.0 .
-```
-
-### 2. Test Locally
-
-```bash
-docker run -e DISCORD_TOKEN=your_token_here your-dockerhub-username/astra-bot:v1.0.0
-```
-
-### 3. Push to Registry
-
-```bash
-docker push your-dockerhub-username/astra-bot:v1.0.0
-```
-
-### 4. Use in Pterodactyl
-
-Update the egg to use your custom image:
-```
-your-dockerhub-username/astra-bot:v1.0.0
-```
-
----
-
-## Adding Themes in Pterodactyl
-
-Since Pterodactyl uses containers, themes work slightly differently:
-
-### Method 1: Mount Volume (Recommended)
-
-In Pterodactyl, mount a volume for themes:
-
-```
-/mnt/pterodactyl/themes/astra:/home/container/themes
-```
-
-Upload themes to `/mnt/pterodactyl/themes/astra/` on the host.
-
-### Method 2: Include in Image
-
-Build a custom image with themes baked in:
-
-```dockerfile
-FROM your-registry/astra-bot:latest
-
-# Add custom themes
-COPY my-theme/ /home/container/themes/my-theme/
-```
-
-### Method 3: Git Submodules
-
-If using the Git clone method, themes can be added as submodules.
-
----
-
-## Updating the Bot
-
-### Manual Update
-
-1. Stop the server
-2. Reinstall (pulls latest code)
-3. Start the server
-
-### Auto-Update (with Git egg)
-
-Set `AUTO_UPDATE` environment variable:
-```bash
-AUTO_UPDATE=1
-```
-
-The startup script will pull latest changes before starting.
-
----
+| Image | CVEs | Size | Pterodactyl Compatible |
+|-------|------|------|------------------------|
+| `latest` | ~100 | 150MB | ✅ Yes |
+| `alpine` | ~20 | 80MB | ✅ Yes (Recommended) |
+| `distroless` | ~5 | 70MB | ❌ No (no shell) |
 
 ## Troubleshooting
 
-### "No module named 'astra'"
+### "No module named astra"
 
-The installation script didn't run properly. Try:
-1. Reinstall the server
-2. Check installation logs
-
-### "Permission denied"
-
-Pterodactyl runs as non-root in some configurations. Ensure:
-```dockerfile
-USER root
+The image is outdated. Update to the latest:
 ```
-in the Dockerfile.
+mystiatech/astra-bot:alpine
+```
 
-### Themes not appearing
+### Server stuck on "Starting"
 
-Check that the themes directory is properly mounted:
+Check that the startup detection is set to look for:
+```
+Astra is ready
+```
+
+### Permission denied
+
+Ensure the Docker image runs as a non-root user. Our images are configured with `USER container` or `USER nonroot`.
+
+### Commands don't appear in Discord
+
+1. Wait 1 hour for global commands to sync, OR
+2. Kick and re-invite the bot to your server
+
+## Alternative: Git-based Deployment
+
+If you prefer to have the code editable:
+
+1. Use **Generic Python** egg
+2. **Docker Image**: `python:3.10-alpine`
+3. **Startup**: `python -m astra`
+4. **Install Script**:
 ```bash
-# In the container
-ls -la /home/container/themes/
+apk add --no-cache git
+ git clone https://giteas.fullmooncyberworks.com/mystiatech/Astra.git .
+cd astra
+pip install -e .
 ```
 
-### High memory usage
-
-Astra is lightweight, but if needed:
-1. Limit concurrent readings
-2. Reduce theme image sizes
-3. Set memory limits in Pterodactyl
-
----
-
-## Resource Requirements
-
-| Resource | Minimum | Recommended |
-|----------|---------|-------------|
-| RAM | 256 MB | 512 MB |
-| CPU | 0.25 cores | 0.5 cores |
-| Storage | 100 MB | 500 MB (with themes) |
-| Network | Outbound only | Outbound only |
-
----
-
-## Docker Compose (for testing)
-
-```yaml
-version: '3.8'
-
-services:
-  astra:
-    build: .
-    container_name: astra-bot
-    environment:
-      - DISCORD_TOKEN=${DISCORD_TOKEN}
-      - LOG_LEVEL=INFO
-    volumes:
-      - ./themes:/home/container/themes:ro
-      - ./data:/home/container/data
-    restart: unless-stopped
-```
-
----
+This clones fresh code on each reinstall.
 
 ## Support
 
-For issues specific to Pterodactyl deployment:
+For issues:
 1. Check Pterodactyl logs
-2. Verify environment variables are set
+2. Verify Docker image tag
 3. Ensure Discord token is valid
-4. Check file permissions
-
-For bot issues, see the main README.md.
+4. Check the [GitHub Issues](https://github.com/MystiaTech/astra/issues)
