@@ -272,7 +272,7 @@ def create_journal_embed(readings: list, user: discord.User, page: int = 1, per_
     )
     
     if not readings:
-        embed.description += "\n\n*Your journal is empty. Save readings with `/tarot-save`!*"
+        embed.description += "\n\n*Your journal is empty. Save readings with the Save button after a reading!*"
         return embed
     
     # Calculate pagination
@@ -282,12 +282,25 @@ def create_journal_embed(readings: list, user: discord.User, page: int = 1, per_
     page_readings = readings[start:end]
     
     for i, entry in enumerate(page_readings, start + 1):
-        date_str = entry.get('timestamp', 'Unknown date')
-        spread = entry.get('spread_type', 'Unknown spread')
-        question = entry.get('question', 'No question')
-        cards = entry.get('cards', [])
+        # Handle both JournalEntry objects and dicts
+        if hasattr(entry, 'to_dict'):
+            entry_data = entry.to_dict()
+        elif hasattr(entry, '__dict__'):
+            entry_data = entry.__dict__
+        else:
+            entry_data = entry
         
-        card_names = [c.get('name', 'Unknown') for c in cards[:3]]
+        date_str = entry_data.get('timestamp', 'Unknown date')[:10] if isinstance(entry_data, dict) else str(entry_data.timestamp)[:10]
+        spread = entry_data.get('spread_type', 'Unknown spread') if isinstance(entry_data, dict) else entry_data.spread_type
+        question = entry_data.get('question', '') if isinstance(entry_data, dict) else entry_data.question
+        cards = entry_data.get('cards', []) if isinstance(entry_data, dict) else entry_data.cards
+        
+        card_names = []
+        for c in cards[:3]:
+            if isinstance(c, dict):
+                card_names.append(c.get('name', 'Unknown'))
+            else:
+                card_names.append(str(c))
         cards_str = ", ".join(card_names)
         if len(cards) > 3:
             cards_str += f" +{len(cards) - 3} more"
@@ -306,12 +319,22 @@ def create_journal_embed(readings: list, user: discord.User, page: int = 1, per_
     return embed
 
 
-def create_journal_entry_embed(entry: dict, user: discord.User) -> discord.Embed:
+def create_journal_entry_embed(entry, user: discord.User) -> discord.Embed:
     """Create detailed embed for a single journal entry."""
-    spread_type = entry.get('spread_type', 'Reading')
-    question = entry.get('question')
-    cards = entry.get('cards', [])
-    date_str = entry.get('timestamp', 'Unknown date')
+    # Handle both JournalEntry objects and dicts
+    if hasattr(entry, 'to_dict'):
+        entry_data = entry.to_dict()
+    elif hasattr(entry, '__dict__'):
+        entry_data = entry.__dict__
+    else:
+        entry_data = entry
+    
+    is_dict = isinstance(entry_data, dict)
+    
+    spread_type = entry_data.get('spread_type', 'Reading') if is_dict else entry_data.spread_type
+    question = entry_data.get('question') if is_dict else entry_data.question
+    cards = entry_data.get('cards', []) if is_dict else entry_data.cards
+    date_str = entry_data.get('timestamp', 'Unknown date') if is_dict else str(entry_data.timestamp)
     
     embed = discord.Embed(
         title=f"📔 Journal Entry • {spread_type}",
@@ -327,13 +350,19 @@ def create_journal_entry_embed(entry: dict, user: discord.User) -> discord.Embed
         )
     
     for card in cards:
-        card_name = card.get('name', 'Unknown')
-        position = card.get('position', 0)
-        reversed = card.get('reversed', False)
-        meaning = card.get('meaning', '')
+        if isinstance(card, dict):
+            card_name = card.get('name', 'Unknown')
+            position = card.get('position', 0)
+            is_reversed = card.get('reversed', False)
+            meaning = card.get('meaning', '')
+        else:
+            card_name = str(getattr(card, 'name', 'Unknown'))
+            position = getattr(card, 'position', 0)
+            is_reversed = getattr(card, 'reversed', False)
+            meaning = str(getattr(card, 'meaning', ''))
         
         emoji = POSITION_EMOJIS[position - 1] if position <= len(POSITION_EMOJIS) else "🃏"
-        status = " (Reversed)" if reversed else ""
+        status = " (Reversed)" if is_reversed else ""
         
         embed.add_field(
             name=f"{emoji} {card_name}{status}",
