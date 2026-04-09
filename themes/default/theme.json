@@ -1,0 +1,17 @@
+{
+  "name": "Classic Rider-Waite",
+  "description": "Traditional tarot imagery based on the Rider-Waite-Smith deck. Timeless symbolism with rich esoteric meaning.",
+  "author": "Team Astra",
+  "version": "1.0.0",
+  "card_format": "{suit}_{number}.png",
+  "supports_reversed": false,
+  "preview_image": "preview.png",
+  "is_default": true,
+  "extra": {
+    "style": "traditional",
+    "colors": ["gold", "blue", "red", "green"],
+    "artist": "Pamela Colman Smith (original)",
+    "year": "1909 (original)",
+    "symbolism": "Golden Dawn tradition"
+  }
+}

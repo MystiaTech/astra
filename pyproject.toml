@@ -1,0 +1,34 @@
+[project]
+name = "astra-tarot-bot"
+version = "1.0.0"
+description = "Astra - A Discord bot for authentic tarot readings"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "discord-py>=2.3.0",
+    "python-dotenv>=1.0.0",
+    "aiohttp>=3.9.0",
+    "pydantic>=2.5.0",
+    "watchdog>=3.0.0",
+    "Pillow>=10.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.1.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+]
+
+[tool.black]
+line-length = 100
+
+[tool.ruff]
+line-length = 100
+select = ["E", "F", "W", "I", "N"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
